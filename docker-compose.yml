@@ -1,0 +1,14 @@
+services:
+  bot:
+    build: .
+    container_name: ak-chat-bot
+    volumes:
+      - ./data.db:/app/data.db
+    environment:
+      - ACCESS_TOKEN=${ACCESS_TOKEN}
+      - CONVERSATION_ID=${CONVERSATION_ID}
+      - RECIPIENT_ID=${RECIPIENT_ID}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+    restart: unless-stopped
+    # Uncomment the line below if you want to run it on a schedule (e.g., every hour)
+    # command: sh -c "while true; do node index.js; sleep 3600; done"

@@ -54,6 +54,12 @@ function pickRandomWeekdays(count) {
   return days.slice(0, count).sort();
 }
 
+// Patikrinti ar laikas tarp 8:00–21:00
+function isAllowedTime() {
+  const now = DateTime.now().setZone('Europe/Vilnius');
+  return now.hour >= 8 && now.hour < 21;
+}
+
 function getRandomTimeInRange(part) {
   const ranges = {
     morning: [9, 10],
@@ -105,12 +111,46 @@ Grąžink tik vieną trumpą žinutę, tinkančią laikui "${part}".`;
   return res.data.choices[0].message.content.trim();
 }
 
-// MAIN
-(async () => {
+// Generuoti atsakymą iš OpenAI
+async function generateReply(messages) {
+  const prompt = messages.map(m => `${m.from.id === RECIPIENT_ID ? 'Mama' : 'Botas'}: ${m.message}`).join('\n') + '\nBotas:';
+  const res = await axios.post('https://api.openai.com/v1/chat/completions', {
+    model: "gpt-4",
+    messages: [
+      { role: "system", content: "Tu esi sūnus, rašantis šiltą trumpą žinutę savo mamai messenger platfotrmoje, nereikia zinutes pabaigoje rasyti kad tai tu. Pasistenk atsakyti kuo trumpiau. " },
+      { role: "user", content: prompt }
+    ],
+    temperature: 0.7,
+  }, {
+    headers: { Authorization: `Bearer ${OPENAI_API_KEY}` }
+  });
+
+  return res.data.choices[0].message.content.trim();
+}
+
+// Pagrindinė funkcija
+async function run() {
   await initDB();
   const now = DateTime.now().setZone('Europe/Vilnius');
   const today = now.toISODate();
   const weekday = now.weekday;
+
+  // Check for auto-reply functionality first
+  const messages = await getMessages();
+  if (messages.length > 0) {
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageTime = DateTime.fromISO(lastMessage.created_time).setZone('Europe/Vilnius');
+    const isFromUser = lastMessage.from.id === RECIPIENT_ID;
+    const minutesSince = now.diff(lastMessageTime, 'minutes').minutes;
+
+    // If last message is from user and >2 minutes ago, reply
+    if (isFromUser && minutesSince >= 2 && isAllowedTime()) {
+      const reply = await generateReply(messages);
+      await sendMessage(reply);
+      console.log(`Atsakyta: ${reply}`);
+      return; // Exit after replying
+    }
+  }
 
   const weekKey = `greeting_weekdays_${RECIPIENT_ID}_${now.startOf('week').toISODate()}`;
   let scheduledDays = await getData(weekKey);
@@ -149,11 +189,14 @@ Grąžink tik vieną trumpą žinutę, tinkančią laikui "${part}".`;
 
   const greetingTime = DateTime.fromISO(greetingTimeISO).setZone('Europe/Vilnius');
 
-  if (greetingSent || now < greetingTime) return;
+  if (greetingSent || now < greetingTime || !isAllowedTime()) {
+    return;
+  }
 
-  const messages = await getMessages();
+  // Re-get messages for greeting logic (avoid duplicate API call)
+  const greetingMessages = messages || await getMessages();
 
-  const userMessagesToday = messages.some(msg => {
+  const userMessagesToday = greetingMessages.some(msg => {
     const msgTime = DateTime.fromISO(msg.created_time).setZone('Europe/Vilnius');
     return msgTime.toISODate() === today;
   });
@@ -167,4 +210,6 @@ Grąžink tik vieną trumpą žinutę, tinkančią laikui "${part}".`;
     await setData(sentKey, true);
     console.log('User already messaged today. Marking greeting as sent.');
   }
-})();
+}
+
+run().catch(console.error);

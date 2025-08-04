@@ -84,12 +84,17 @@ async function sendMessage(text) {
 
 // OPENAI
 async function generateGreeting(part) {
-  const prompt = `Sukurk trumpą, atsitiktinę žinutę mamai... "${part}"`;
+  const prompt = `Sukurk trumpą,atsitiktinę žinutę mamai, kurią sūnus galėtų parašyti per Messenger. Nenaudok mazybiniu zodziu, ar meiles issireiskimu. Naudok dienos laiką "${part}". Žinutė turi būti trumpa, draugiška ir viena iš galimų pavyzdžių galėtų būti:
+- Labas rytas Mama, kaip tu šiandien laikaisi?
+- Labas, kaip sekasi?
+- Labas vakaras, kaip tu?
+
+Grąžink tik vieną trumpą žinutę, tinkančią laikui "${part}".`;
 
   const res = await axios.post('https://api.openai.com/v1/chat/completions', {
     model: "gpt-4",
     messages: [
-      { role: "system", content: "Tu esi sūnus, rašantis mielą žinutę mamai." },
+      { role: "system", content: "Tu esi sūnus, rašantis mielą vienkartinę žinutę savo mamai per Messenger." },
       { role: "user", content: prompt }
     ],
     temperature: 0.8,

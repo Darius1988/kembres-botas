@@ -125,6 +125,32 @@ async function generateReply(messages, recipientId) {
   return res.data.choices[0].message.content.trim();
 }
 
+// Handle auto-reply functionality
+async function handleAutoReply(messages, recipientId, accessToken) {
+  const now = DateTime.now().setZone('Europe/Vilnius');
+  
+  if (messages.length > 0) {
+    const lastMessage = messages[messages.length - 1];
+    const lastMessageTime = DateTime.fromISO(lastMessage.created_time).setZone('Europe/Vilnius');
+    const isFromUser = lastMessage.from.id === recipientId;
+    const minutesSince = now.diff(lastMessageTime, 'minutes').minutes;
+
+    // If last message is from user and >4 minutes ago, reply
+    if (isFromUser && minutesSince >= 4 && isAllowedTime()) {
+      const reply = await generateReply(messages, recipientId);
+      await sendMessage(reply, recipientId, accessToken);
+      console.log(`Atsakyta: ${reply}`);
+      return true; // Return true if reply was sent
+    }
+
+    if (!isFromUser) {
+      console.log('Last message is not from user. Skipping auto-reply.');
+    }
+  }
+  
+  return false; // Return false if no reply was sent
+}
+
 // Pagrindinė funkcija
 async function run(cfg) {
   const { accessToken, conversationId, recipientId } = cfg;
@@ -136,23 +162,10 @@ async function run(cfg) {
 
   // Check for auto-reply functionality first
   const messages = await getMessages(conversationId, accessToken);
-  if (messages.length > 0) {
-    const lastMessage = messages[messages.length - 1];
-    const lastMessageTime = DateTime.fromISO(lastMessage.created_time).setZone('Europe/Vilnius');
-    const isFromUser = lastMessage.from.id === recipientId;
-    const minutesSince = now.diff(lastMessageTime, 'minutes').minutes;
-
-    // If last message is from user and >2 minutes ago, reply
-    if (isFromUser && minutesSince >= 5 && isAllowedTime()) {
-      const reply = await generateReply(messages, recipientId);
-      await sendMessage(reply, recipientId, accessToken);
-      console.log(`Atsakyta: ${reply}`);
-      return; // Exit after replying
-    }
-
-    if (!isFromUser) {
-      console.log('Last message is not from user. Skipping auto-reply.');
-    }
+  const replySent = await handleAutoReply(messages, recipientId, accessToken);
+  
+  if (replySent) {
+    return; // Exit after replying
   }
 
   const weekKey = `greeting_weekdays_${recipientId}_${now.startOf('week').toISODate()}`;

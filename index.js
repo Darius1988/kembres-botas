@@ -2,10 +2,20 @@ import axios from 'axios';
 import { DateTime } from 'luxon';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
-
-// Load .env file
+import path from 'path';
+import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
-dotenv.config();
+
+// Get script directory
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Load .env file from script directory
+dotenv.config({ path: path.join(__dirname, '.env') });
+
+if (!process.env.OPENAI_API_KEY) {
+  throw new Error('OPENAI_API_KEY is not set');
+}
 
 // CONFIG
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
@@ -14,7 +24,7 @@ const FB_API_URL = 'https://graph.facebook.com/v19.0/me/messages';
 // DB HELPER
 async function getDB() {
   return open({
-    filename: './data.db',
+    filename: path.join(__dirname, 'data.db'),
     driver: sqlite3.Database
   });
 }

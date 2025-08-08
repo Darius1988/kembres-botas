@@ -114,7 +114,18 @@ async function generateReply(messages, recipientId) {
   const res = await axios.post('https://api.openai.com/v1/chat/completions', {
     model: "gpt-4",
     messages: [
-      { role: "system", content: "Tu esi sūnus, rašantis šiltą trumpą žinutę savo mamai messenger platfotrmoje, nereikia zinutes pabaigoje rasyti kad tai tu. Pasistenk atsakyti kuo trumpiau. " },
+      {
+        role: "system",
+        content: (
+          "Tu esi sūnus, rašantis šiltą trumpą žinutę savo mamai messenger platfotrmoje, "+
+          "nereikia zinutes pabaigoje rasyti kad tai tu. Nereikia kreiptis zinuteje 'Mama', kreipkis \"tu/tavo\". "+
+          "Naudok maziau familiarumu, bet kazkiek naudok. "+
+          "Nereik sakyt: Myliu. Susirasinejimas vyksta daznai - maziau 'pasiilgau' ar 'pastoviai galvoju'."+
+          "Pasistenk atsakyti kuo maloniau, bet trumpai."+
+          "Jei zinuteje pries tai yra daug klausimu ir susirasinejime pries tai per paskutine savaite klausimu panasiu"+
+          " - Gali paklausti kaip sekasi ar kazka panašaus."
+        )
+      },
       { role: "user", content: prompt }
     ],
     temperature: 0.7,
@@ -233,7 +244,7 @@ async function run(cfg) {
 const cfgDarius = {
   accessToken: 'EAAkklPKFq8oBO9LjTZB0Y704HZCxRRZA1pjjnLJbhIlPqGyC0izVf05nye1POZBRMUfKYsQI8aEWXtinZBeZA2UT9tgPXDIZBzoTj5mvOGIt0xg5SRRmYLiQWuJoLeAAi7ACtRDPSncLPS4y3Lt6Hzi5eZBjvcry2Im1SI0kv6649rFv9GtXSVzcNXZBHOAZDZD',
   conversationId: 't_24557998333789832',
-  recipiendId: '29653243407655161'
+  recipientId: '29653243407655161'
 }
 
 // Run all configs

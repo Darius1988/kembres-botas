@@ -8,9 +8,6 @@ import dotenv from 'dotenv';
 dotenv.config();
 
 // CONFIG
-const ACCESS_TOKEN = process.env.ACCESS_TOKEN;
-const CONVERSSATION_ID = process.env.CONVERSATION_ID;
-const RECIPIENT_ID = process.env.RECIPIENT_ID;
 const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 const FB_API_URL = 'https://graph.facebook.com/v19.0/me/messages';
 
@@ -73,18 +70,18 @@ function getRandomTimeInRange(part) {
 }
 
 // FACEBOOK
-async function getMessages() {
-  const url = `https://graph.facebook.com/v19.0/${CONVERSSATION_ID}/messages?fields=message,from,created_time&access_token=${ACCESS_TOKEN}`;
+async function getMessages(conversationId, accessToken) {
+  const url = `https://graph.facebook.com/v19.0/${conversationId}/messages?fields=message,from,created_time&access_token=${accessToken}`;
   const res = await axios.get(url);
   return (res.data.data || []).reverse();
 }
 
-async function sendMessage(text) {
+async function sendMessage(text, recipientId, accessToken) {
   await axios.post(FB_API_URL, {
-    recipient: { id: RECIPIENT_ID },
+    recipient: { id: recipientId },
     message: { text },
   }, {
-    params: { access_token: ACCESS_TOKEN },
+    params: { access_token: accessToken },
   });
 }
 
@@ -112,8 +109,8 @@ Grąžink tik vieną trumpą žinutę, tinkančią laikui "${part}".`;
 }
 
 // Generuoti atsakymą iš OpenAI
-async function generateReply(messages) {
-  const prompt = messages.map(m => `${m.from.id === RECIPIENT_ID ? 'Mama' : 'Botas'}: ${m.message}`).join('\n') + '\nBotas:';
+async function generateReply(messages, recipientId) {
+  const prompt = messages.map(m => `${m.from.id === recipientId ? 'Mama' : 'Botas'}: ${m.message}`).join('\n') + '\nBotas:';
   const res = await axios.post('https://api.openai.com/v1/chat/completions', {
     model: "gpt-4",
     messages: [
@@ -129,30 +126,36 @@ async function generateReply(messages) {
 }
 
 // Pagrindinė funkcija
-async function run() {
+async function run(cfg) {
+  const { accessToken, conversationId, recipientId } = cfg;
+
   await initDB();
   const now = DateTime.now().setZone('Europe/Vilnius');
   const today = now.toISODate();
   const weekday = now.weekday;
 
   // Check for auto-reply functionality first
-  const messages = await getMessages();
+  const messages = await getMessages(conversationId, accessToken);
   if (messages.length > 0) {
     const lastMessage = messages[messages.length - 1];
     const lastMessageTime = DateTime.fromISO(lastMessage.created_time).setZone('Europe/Vilnius');
-    const isFromUser = lastMessage.from.id === RECIPIENT_ID;
+    const isFromUser = lastMessage.from.id === recipientId;
     const minutesSince = now.diff(lastMessageTime, 'minutes').minutes;
 
     // If last message is from user and >2 minutes ago, reply
-    if (isFromUser && minutesSince >= 2 && isAllowedTime()) {
-      const reply = await generateReply(messages);
-      await sendMessage(reply);
+    if (isFromUser && minutesSince >= 5 && isAllowedTime()) {
+      const reply = await generateReply(messages, recipientId);
+      await sendMessage(reply, recipientId, accessToken);
       console.log(`Atsakyta: ${reply}`);
       return; // Exit after replying
     }
+
+    if (!isFromUser) {
+      console.log('Last message is not from user. Skipping auto-reply.');
+    }
   }
 
-  const weekKey = `greeting_weekdays_${RECIPIENT_ID}_${now.startOf('week').toISODate()}`;
+  const weekKey = `greeting_weekdays_${recipientId}_${now.startOf('week').toISODate()}`;
   let scheduledDays = await getData(weekKey);
 
   if (!scheduledDays) {
@@ -167,9 +170,9 @@ async function run() {
     return;
   }
 
-  const sentKey = `greeting_sent_${today}_${RECIPIENT_ID}`;
-  const timeKey = `greeting_time_${today}_${RECIPIENT_ID}`;
-  const partKey = `greeting_part_${today}_${RECIPIENT_ID}`;
+  const sentKey = `greeting_sent_${today}_${recipientId}`;
+  const timeKey = `greeting_time_${today}_${recipientId}`;
+  const partKey = `greeting_part_${today}_${recipientId}`;
 
   const greetingSent = await getData(sentKey);
   let greetingTimeISO = await getData(timeKey);
@@ -194,7 +197,7 @@ async function run() {
   }
 
   // Re-get messages for greeting logic (avoid duplicate API call)
-  const greetingMessages = messages || await getMessages();
+  const greetingMessages = messages || await getMessages(conversationId, accessToken);
 
   const userMessagesToday = greetingMessages.some(msg => {
     const msgTime = DateTime.fromISO(msg.created_time).setZone('Europe/Vilnius');
@@ -203,7 +206,7 @@ async function run() {
 
   if (!userMessagesToday) {
     const greeting = await generateGreeting(greetingPart);
-    await sendMessage(greeting);
+    await sendMessage(greeting, recipientId, accessToken);
     await setData(sentKey, true);
     console.log(`Greeting sent: "${greeting}"`);
   } else {
@@ -212,4 +215,19 @@ async function run() {
   }
 }
 
-run().catch(console.error);
+
+// Darius config
+const cfgDarius = {
+  accessToken: 'EAAkklPKFq8oBO9LjTZB0Y704HZCxRRZA1pjjnLJbhIlPqGyC0izVf05nye1POZBRMUfKYsQI8aEWXtinZBeZA2UT9tgPXDIZBzoTj5mvOGIt0xg5SRRmYLiQWuJoLeAAi7ACtRDPSncLPS4y3Lt6Hzi5eZBjvcry2Im1SI0kv6649rFv9GtXSVzcNXZBHOAZDZD',
+  conversationId: 't_24557998333789832',
+  recipiendId: '29653243407655161'
+}
+
+// Run all configs
+const runAll = async () => {
+  console.log(' -- Darius cycle is starting');
+  await run(cfgDarius);
+  console.log(' -- Darius cycle is done');
+}
+
+runAll().catch(console.error);

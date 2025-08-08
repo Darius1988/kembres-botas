@@ -257,11 +257,22 @@ const cfgDarius = {
   recipientId: '29653243407655161'
 }
 
+// Irena config
+const cfgIrena = {
+  accessToken: 'EAAkklPKFq8oBO9LjTZB0Y704HZCxRRZA1pjjnLJbhIlPqGyC0izVf05nye1POZBRMUfKYsQI8aEWXtinZBeZA2UT9tgPXDIZBzoTj5mvOGIt0xg5SRRmYLiQWuJoLeAAi7ACtRDPSncLPS4y3Lt6Hzi5eZBjvcry2Im1SI0kv6649rFv9GtXSVzcNXZBHOAZDZD',
+  conversationId: 't_1432181688141091',
+  recipientId: '30684381974493967'
+}
+
 // Run all configs
 const runAll = async () => {
   console.log(' -- Darius cycle is starting');
   await run(cfgDarius);
   console.log(' -- Darius cycle is done');
+  
+  console.log(' -- Irena cycle is starting');
+  await run(cfgIrena);
+  console.log(' -- Irena cycle is done');
 }
 
 runAll().catch(console.error);
